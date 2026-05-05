@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Recipe Finder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      :root {
+        --bg: #f7fafc;
+        --text: #1f2937;
+        --muted: #4b5563;
+        --card: #ffffff;
+        --btn-bg: #4f46e5;
+        --btn-text: #ffffff;
+        --muted-bg: #e5e7eb;
+      }
+      .dark {
+        --bg: #0b1220;
+        --text: #e6eef8;
+        --muted: #9ca3af;
+        --card: #071026;
+        --btn-bg: #7c3aed;
+        --btn-text: #ffffff;
+        --muted-bg: #1f2937;
+      }
+      html,
+      body {
+        background-color: var(--bg);
+        color: var(--text);
+      }
+      .muted {
+        color: var(--muted) !important;
+      }
+      .card {
+        background-color: var(--card) !important;
+        color: var(--text) !important;
+      }
+      .btn-primary {
+        background-color: var(--btn-bg) !important;
+        color: var(--btn-text) !important;
+      }
+      .btn-secondary {
+        background-color: var(--muted-bg) !important;
+        color: var(--text) !important;
+      }
+      /* Dark-mode overrides for common Tailwind utility classes */
+      .dark .text-gray-800 {
+        color: var(--text) !important;
+      }
+      .dark .text-gray-600 {
+        color: var(--muted) !important;
+      }
+      .dark .bg-white {
+        background-color: var(--card) !important;
+      }
+      .dark .bg-gray-200 {
+        background-color: var(--muted-bg) !important;
+      }
+      .dark .border {
+        border-color: rgba(255, 255, 255, 0.06) !important;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-100 min-h-screen">
+    <div class="max-w-5xl mx-auto p-6">
+      <header class="mb-6">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <h1 class="text-3xl font-bold text-gray-800">Recipe Finder</h1>
+            <p class="text-gray-600">
+              Search recipes by ingredient (powered by TheMealDB)
+            </p>
+          </div>
+          <div>
+            <button
+              id="themeToggle"
+              title="Toggle theme"
+              class="px-3 py-2 rounded text-sm btn-secondary"
+            >
+              🌙
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="flex gap-3 mb-6 flex-col sm:flex-row">
+        <input
+          id="ingredient"
+          type="text"
+          placeholder="e.g., chicken, tomato"
+          class="flex-1 p-3 rounded border"
+        />
+        <div class="flex gap-2">
+          <button
+            id="searchBtn"
+            class="bg-indigo-600 text-white px-4 py-2 rounded btn-primary"
+          >
+            Search
+          </button>
+          <button
+            id="randomBtn"
+            class="bg-green-600 text-white px-4 py-2 rounded btn-primary"
+          >
+            Get Random Recipe
+          </button>
+        </div>
+      </div>
+
+      <div id="status" class="mb-4 text-sm text-gray-600 muted"></div>
+
+      <div
+        id="grid"
+        class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
+      ></div>
+
+      <template id="cardTpl">
+        <div class="bg-white rounded shadow overflow-hidden card">
+          <img class="w-full h-44 object-cover" src="" alt="" />
+          <div class="p-4">
+            <h3 class="font-semibold text-lg mb-2"></h3>
+            <div class="flex justify-between items-center">
+              <a
+                class="bg-indigo-600 text-white px-3 py-1 rounded text-sm btn-primary"
+                target="_blank"
+                >View Instructions</a
+              >
+              <button
+                class="bg-gray-200 text-gray-700 px-3 py-1 rounded text-sm btn-secondary"
+              >
+                Details
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <script>
+      // Theme management: apply saved theme or follow system preference
+      (function () {
+        const toggle = () => {
+          const isDark = document.documentElement.classList.toggle("dark");
+          const btn = document.getElementById("themeToggle");
+          if (btn) btn.textContent = isDark ? "☀️" : "🌙";
+          localStorage.setItem("theme", isDark ? "dark" : "light");
+        };
+        const init = () => {
+          const saved = localStorage.getItem("theme");
+          const prefersDark =
+            window.matchMedia &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches;
+          const useDark = saved ? saved === "dark" : prefersDark;
+          if (useDark) document.documentElement.classList.add("dark");
+          const btn = document.getElementById("themeToggle");
+          if (btn) btn.textContent = useDark ? "☀️" : "🌙";
+          if (btn) btn.addEventListener("click", toggle);
+        };
+        document.addEventListener("DOMContentLoaded", init);
+      })();
+      const grid = document.getElementById("grid");
+      const status = document.getElementById("status");
+      const ingredientInput = document.getElementById("ingredient");
+      const searchBtn = document.getElementById("searchBtn");
+      const randomBtn = document.getElementById("randomBtn");
+      const cardTpl = document.getElementById("cardTpl");
+
+      async function searchIngredient() {
+        const q = ingredientInput.value.trim();
+        if (!q) {
+          status.textContent = "Please enter an ingredient.";
+          return;
+        }
+        status.textContent = "Searching...";
+        try {
+          const res = await fetch(
+            `/api/search?ingredient=${encodeURIComponent(q)}`,
+          );
+          const data = await res.json();
+          const meals = data.meals || [];
+          renderMeals(meals);
+          status.textContent = meals.length
+            ? `Found ${meals.length} recipes.`
+            : "No recipes found.";
+        } catch (err) {
+          console.error(err);
+          status.textContent = "Error fetching recipes.";
+        }
+      }
+
+      async function getRandom() {
+        status.textContent = "Fetching random recipe...";
+        try {
+          const res = await fetch("/api/random");
+          const data = await res.json();
+          const meals = data.meals || [];
+          renderMeals(meals);
+          status.textContent = "";
+        } catch (err) {
+          console.error(err);
+          status.textContent = "Error fetching random recipe.";
+        }
+      }
+
+      function renderMeals(meals) {
+        grid.innerHTML = "";
+        if (!meals.length) return;
+        meals.forEach((m) => {
+          const node = cardTpl.content.cloneNode(true);
+          const img = node.querySelector("img");
+          const title = node.querySelector("h3");
+          const link = node.querySelector("a");
+          const detailsBtn = node.querySelector("button");
+          img.src = m.strMealThumb;
+          img.alt = m.strMeal;
+          title.textContent = m.strMeal;
+          link.href = `/recipe/${m.idMeal}`;
+          link.textContent = "View Instructions";
+          detailsBtn.addEventListener("click", async () => {
+            // Fetch full details and show quick alert with category/area
+            try {
+              const r = await fetch(`/api/lookup?id=${m.idMeal}`);
+              const d = await r.json();
+              alert(
+                `${d.strMeal}\nCategory: ${d.strCategory || "N/A"}\nArea: ${d.strArea || "N/A"}`,
+              );
+            } catch (e) {
+              console.error(e);
+              alert("Could not load details");
+            }
+          });
+          grid.appendChild(node);
+        });
+      }
+
+      searchBtn.addEventListener("click", searchIngredient);
+      randomBtn.addEventListener("click", getRandom);
+      ingredientInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") searchIngredient();
+      });
+    </script>
+  </body>
+</html>
