@@ -21,7 +21,7 @@ Deciding what to cook can be harder than cooking itself. Recipe Generator lets u
 | Frontend | HTML5, [CSS3], [JavaScript] |
 | Backend | Python, [Flask / FastAPI / Django] |
 | Data / API | [Openai API] |
-| Hosting | [Netlify] |
+| Hosting | [Vercel] |
 
 ## Getting Started
 
